@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 288 288" width="288" height="288">
+	<style>
+		tspan { white-space:pre }
+		.shp0 { fill: none } 
+		.shp1 { fill: #00b800 } 
+		.txt2 { font-size: 104px;fill: #ffffff;font-weight: 400;font-family: "CoolveticaRg-Regular", "Coolvetica" } 
+	</style>
+	<g id="SvgjsG1008">
+		<g id="Layer">
+			<path id="Layer" class="shp0" d="M12 12L276 12L276 276L12 276L12 12Z" />
+			<path id="Layer" class="shp1" d="M199 144L221 144L144 34L67.55 144L89 144L46.1 210L122.22 210L122.22 254L165.78 254L165.78 210L243 210L199 144Z" />
+		</g>
+		<text id="12 " style="transform: matrix(1.276,0,0,1.276,94.127,192.31)" >
+			<tspan x="0" y="0" class="txt2">13</tspan>
+		</text>
+	</g>
+</svg>

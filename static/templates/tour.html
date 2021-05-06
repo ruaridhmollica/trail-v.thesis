@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+
+{{template "head.html"}}
+
+<body>
+    <!-- Imports the desktop navbar template -->
+    {{template "nav.html"}}
+
+    <!--DESKTOP PAGE-->
+    <div class="pt-4 textcol justify-content-center wipfooter d-flex align-items-center text-center mobhide">
+        <div class="h-20 w-20 container mobhide">
+            <img src="/static/img/tour_mobile.png" style="height: 50%; width: 50%;" class="h-20 w-20 mobhide">
+        </div>
+        <div class="container mobhide">
+        <p class="mobhide" style="font-size: medium;">Please navigate to the Trail app on a mobile device to undertake the tour.</p>
+        <hr class="justify-content-center hr" style="width: 60%;">
+        <p class="mobhide" style="font-size: medium;">Did you know you can add Trail to your home screen? Click 
+            <a href="https://medium.com/pynk/what-is-a-pwa-and-how-to-install-add-to-home-screen-progressive-web-apps-e6e8087d9ad0" style="text-decoration: none;">
+            here </a>to find out more.</p>
+        </div>
+    </div>
+
+    <!--MOBILE PAGE-->
+    <!--The div for the map to be-->
+    <div class="deskhide">
+    <div class="justify-content-center pt-0" id="map2"></div>
+    </div>
+
+
+    <!-- Imports the modal for tree description -->
+    {{template "infomodal.html"}}
+    <!-- Imports the mobile navbar template -->
+    {{template "mobnav.html"}}
+
+
+
+    {{template "scripts.html"}}
+
+    <script>
+        //this small section of code updates the page heading to match the page a user is on e.g. TOUR. or MAP.
+        var navTitle = '{{.navtitle}}';
+        document.getElementById('navtitle').innerHTML = navTitle;
+        document.getElementById('navtitle2').innerHTML = navTitle;
+    </script>
+
+
+
+    <script>
+    //this script handles the event in which a user scanned a QR code of a tree
+    //the qr variable is assigned a value of TRUE in the backend golang code. This value
+    // allows the following modal cration code to be run
+    var qr = '{{.qr}}';
+    var counter = 0;
+     //User Agent parser (script) used to get the OS of a users device for vibration stuff
+     var parser = new UAParser();
+     var os = parser.getOS();
+    
+    //if a user has scanne dthe QR code then the page will have loaded with special variables containing tree information pulled from the database
+    //this information is then put into javascript variables where it can be placed into html elements in a modal and displayed
+    if (qr){
+        $('#myModal').modal('hide');
+        //if the user not on an IOS/Apple device call the vibrate function
+        if(os.name != "iOS" && os.name != "Mac OS") { navigator.vibrate(100); }
+        qr = false;
+        var id = '{{.id}}';
+        var name = '{{.treename}}';
+        var latinname = '{{.latinname}}';
+        var height = '{{.height}}';
+        var age = '{{.age}}';
+        var description = '{{.description}}';
+        var origin = '{{.origin}}';
+        var img = '{{.img}}';
+        $('#tree_title').html(id + ": " + name);
+        $('#tree_img').attr("src", img);
+        $('#tree_age').html(age);
+        $('#latin_name').html(latinname);
+        $('#tree_height').html(height);
+        $('#tree_info').html(description);
+        $('#tree_origin').html(origin);
+        $('#myModal').modal('show');
+    };
+
+    </script>
+
+    <!--Generate the map for the page using the Google My Maps JavaScript API-->
+    <script>
+        let map;
+        let time;
+        var visited = 0;
+        let visited_array = [];
+
+        //defines the variable used to convert text into speech (speech synth api)
+        var textToSpeech = window.speechSynthesis;
+
+        //kickstarts the obtaining of a users current location
+        getLocation();
+       
+
+    //this piece of code is called when a trees geofence is entered, it displays the corresponding tree information in a modal
+    function geofence (json){
+        //this if statement makes sure to not run this code before a geofence is entered
+        if (visited != 0){
+            //if the user not on an IOS/Apple device call the vibrate function
+            if(os.name != "iOS" && os.name != "Mac OS") { navigator.vibrate(300); }
+            $('#myModal').modal('hide');
+            var id = json.id;
+            var name = json.name;
+            var latinname = json.latinname;
+            var height = json.height;
+            var age = json.age;
+            var description = json.description;
+            var origin = json.origin;
+            var img = json.img;
+            $('#myModal').modal('hide');
+            $('#tree_title').html(id + ": " + name);
+            $('#tree_img').attr("src", img);
+            $('#tree_age').html(age);
+            $('#latin_name').html(latinname);
+            $('#tree_height').html(height);
+            $('#tree_info').html(description);
+            $('#tree_origin').html(origin);
+            $('#myModal').modal('show');
+        }
+    };
+
+
+    //this function is called once a geofence is entered and uses the speech synth api to tell a user about the tree they are approaching.
+    function autoSpeech(json){
+        if (visited != 0){
+            var id = json.id;
+            var name = json.name;
+            var latinname = json.latinname;
+            var height = json.height;
+            var age = json.age;
+            var description = json.description;
+            var origin = json.origin;
+            if('speechSynthesis' in window){//if speech synth is supported then create a new Utterance string
+                var speech = new SpeechSynthesisUtterance('You are approaching tree number' + id + '. This ' + latinname + '. commonly known as the' + name + '. is ' + height + ' feet tall. ' + age + 'years old. and originates from ' + origin + '.' + description);
+                speech.lang = 'en-GB';//set the speech voice/language
+                window.speechSynthesis.speak(speech);//speak the string defined above at default pace
+            }
+        }
+    }
+
+    //on IOS you cannot autmatically play audio, it must be triggered by a button push, hence, this code allows 
+    //for any tree information to be spoken aloud via a press of a button
+    function read(){
+            var idName = $('#tree_title').html(); //add the contents of the data box to variables
+            var age = $('#tree_age').html();
+            var latinname = $('#latin_name').html();
+            var height = $('#tree_height').html();
+            var description = $('#tree_info').html();
+            var origin = $('#tree_origin').html();
+            //if the user not on an IOS/Apple device call the vibrate function
+            if(os.name != "iOS" && os.name != "Mac OS") { navigator.vibrate(100); }
+            if('speechSynthesis' in window){//if speech synth is supported then create a new Utterance string
+                var speech = new SpeechSynthesisUtterance('Tree ' + idName + ', This ' + latinname + ', is ' + height + ' tall. ' + age + 'years old, and originates from ' + origin + ',' + description);
+                speech.lang = 'en-GB';//set the speech voice/language
+                textToSpeech.speak(speech);//speak the string defined above at default pace
+            }
+    }
+        //returns to the user an error messaged based on a received error code
+        const getPositionError = code => {
+            switch (code) {
+                case 1:
+                    return 'Permission denied, you may have to enable geolocation in your device settings.';
+                case 2:
+                    return 'Position unavailable.';
+                case 3:
+                    return 'Timeout reached.';
+            }
+        };
+        //error handling for geolocation methods
+        function showError(error)
+            {
+            switch(error.code) 
+                {
+                case error.PERMISSION_DENIED:
+                x.innerHTML="User denied the request for Geolocation."
+                break;
+                case error.POSITION_UNAVAILABLE:
+                x.innerHTML="Location information is unavailable."
+                break;
+                case error.TIMEOUT:
+                x.innerHTML="The request to get user location timed out."
+                break;
+                case error.UNKNOWN_ERROR:
+                x.innerHTML="An unknown error occurred."
+                break;
+                }
+            };
+
+        //checks if geolocation is enabled and supported in the users browser
+        const getCurrentPosition = ({ onSuccess, onError = () => { } }) => {
+            if ('geolocation' in navigator === false) {
+                return onError(new Error('Sorry, Geolocation is not supported by your browser.'));
+            }
+            //if the api is supported then call the method to get the location
+            return navigator.geolocation.getCurrentPosition(onSuccess, onError);
+        };
+
+        //checks if a users location can be tracked and if this feature is supported by browser, if it is then it calls
+        //the "watchposition" method that updates every time a user's location changes
+        const trackLocation = ({ onSuccess, onError = () => { } }) => {
+            if ('geolocation' in navigator === false) {
+                return onError(new Error('Sorry, Geolocation is not supported by your browser.'));
+            }
+            return navigator.geolocation.watchPosition(onSuccess, onError, {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0
+            });
+        };
+
+        //this is function gets the location every 3 secods so as to not timeout on location requests, it then calls the function that checks
+        //if a user is inside a geofence or not
+        function getLocation(){
+                if (navigator.geolocation)
+                    {
+                    navigator.geolocation.getCurrentPosition(checkGeofence,showError);
+                    setTimeout(getLocation, 3000);
+                    }
+                else{alert("Geolocation is not supported by this browser.");}
+            };
+
+
+        //this is the primary function used to speak to the backend and determine whether a user is inside a geofence.
+        //it passes the latitude and longitude of a users current location to the backend via an AJAX post method.
+        //the visited variable is the tree ID and is used to prevent the same tree being returned repeatedly when a user is inside the geofence
+        //Tree data is returned as Json via a struct created in the golang code. The json is then parsed into a Javascript object that can be
+        //indexed to obtain values. This obejct is passed to the function that displays the data and the speech synth function
+        //If a user is not inside a geofence, or the geofence has already been visited, the string NULL is returned. This keep the connection "alive"
+        //and allowed for easier error handling
+        function checkGeofence(position){
+            lat=position.coords.latitude;
+            lng=position.coords.longitude;
+            var i = 0;
+            if (!qr){
+            $.ajax({
+                            url: "https://www.thetrailapp.com/geofence/" + lat + "/" + lng + "/" + visited,
+                            method: "POST",
+                            contentType:'application/json&apos',
+                            dataType: 'json',
+                            cache: false,
+                            scriptCharset: 'utf-8',
+                        }). done (function (jdata) {
+                           var data = $.parseJSON(jdata);
+        
+                            if(data == "null"){
+                                console.log("Not in Geofence");
+                            }else{
+                                visited = data.id;
+                                //the following code uses an array to make sure multiple trees are never triggered twice - if the id of the pulled tree data
+                                //exists in the array then do not show it, otherwise add it to the array and show the data
+                                if(!visited_array.includes(data.id)){
+                                    visited_array.push(data.id);
+                                    geofence(data);
+                                    autoSpeech(data);
+                                }else{
+                                    console.log("Not in Geofence");
+                                }
+                            }
+                            i++;
+
+                        }). fail (function (jdata) {
+                            var d = $.parseJSON(jdata);
+                            alert("fail");
+                            console.log (jdata);
+                        });
+            };
+        };
+
+            
+        //this function handles all map generation stuff
+        function initMap() {
+            
+        
+            //google maps API call that generates a map with specific center and zoom values
+            var map = new google.maps.Map(document.getElementById('map2'), {
+                center: { lat: 55.909329, lng: -3.319491 },
+                zoom: 18,
+                mapTypeId: 'satellite',
+            });
+
+            //creates a route on the map for the testing area on the canal
+            var testingRoute = new google.maps.MVCArray();
+            testingRoute.push( new google.maps.LatLng(55.9407653174704, -3.2129520728739345));
+            testingRoute.push( new google.maps.LatLng(55.93996915902016, -3.215199763988366));
+            testingRoute.push( new google.maps.LatLng(55.94014341396666, -3.215435798377471));
+            testingRoute.push( new google.maps.LatLng(55.93980091212106, -3.216363842680088));
+
+            var routeLineOptions = {
+                path: testingRoute,
+                strokeColor: '#35bef0',
+                strokeWeight: 6,
+                strokeOpacity: 1,
+            };
+            var routeLine = new google.maps.Polyline(routeLineOptions);
+            routeLine.setMap(map);
+
+             //creates a route on the map for the tree trail on campus
+             var route = new google.maps.MVCArray();
+             route.push( new google.maps.LatLng(55.90934378036286, -3.3200149819795204));
+             route.push( new google.maps.LatLng(55.90931070579712, -3.3196716592317315));
+             route.push( new google.maps.LatLng(55.9098836129535, -3.31838160597292));
+             route.push( new google.maps.LatLng(55.91025165524692, -3.318836591534194));
+             route.push( new google.maps.LatLng(55.91056910722812, -3.3190569477858607));
+             route.push( new google.maps.LatLng(55.910668491360795, -3.318790110129424));
+             route.push( new google.maps.LatLng(55.91058165087567, -3.318569753877696));
+             route.push( new google.maps.LatLng(55.91079199749353, -3.3181307629074563));
+             route.push( new google.maps.LatLng(55.91115479449, -3.3185129432816702));
+             route.push( new google.maps.LatLng(55.91117698674892, -3.318714362668015));
+             route.push( new google.maps.LatLng(55.91058701704161, -3.3195850717041306));
+             route.push( new google.maps.LatLng(55.91011244014375, -3.3205811970731434));
+             route.push( new google.maps.LatLng(55.90954824221835, -3.32181505061713));
+             route.push( new google.maps.LatLng(55.90948593734672, -3.3216774250089998));
+             route.push( new google.maps.LatLng(55.90947703664342, -3.3215636192086158));
+             route.push( new google.maps.LatLng(55.909221882279844, -3.3221538213827024));
+             route.push( new google.maps.LatLng(55.90912842415683, -3.3221855811409484));
+             route.push( new google.maps.LatLng(55.90873678765671, -3.323082794330757));
+             route.push( new google.maps.LatLng(55.908917771677196, -3.3237179894956927));
+             route.push( new google.maps.LatLng(55.908672030887786, -3.326161712301503));
+             route.push( new google.maps.LatLng(55.90884349491923, -3.326229296153743));
+             route.push( new google.maps.LatLng(55.90927414542232, -3.3241128544651755));
+             route.push( new google.maps.LatLng(55.90951139991695, -3.3243867469141146));
+             route.push( new google.maps.LatLng(55.909914131095896, -3.323006613510477));
+             route.push( new google.maps.LatLng(55.90973868436378, -3.3227931908191923));
+             route.push( new google.maps.LatLng(55.90944560680215, -3.3234974857004302));
+
+             //defines the polyLine attributes
+            var routeOptions = {
+                path: route,
+                strokeColor: '#35bef0',
+                strokeWeight: 6,
+                strokeOpacity: 1,
+            };
+            var polyLine = new google.maps.Polyline(routeOptions);
+            //draws the line
+            polyLine.setMap(map);
+
+            var customStyled = [{featureType: "all", elementType: "labels", stylers: [{ visibility: "off" }]}];
+            //defines an initial lcoation for the location marker to go (i.e. if user location is unattainable)
+            const initial = { lat: 55.909329, lng: -3.319491 };
+
+            //generates the initial location marker, if the user has an android then the marker is an arrow (for orientation), otherwise
+            //the marker is a circle, as ios web app orientation is buggy and unreliable/ not functioning
+            if (os.name != "iOS" && os.name != "Mac OS") {
+                var marker = new google.maps.Marker({
+                    map,
+                    position: initial,
+                    icon: {
+                        path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+                        strokeColor : '#FF0000',
+                        strokeWeight : 2,
+                        scale: 4.5,
+                        }
+                });
+            }else{
+                var marker = new google.maps.Marker({
+                    map,
+                    position: initial,
+                    icon: {
+                        url: "/static/img/marker.svg",
+                        scaledSize: new google.maps.Size(40, 40),
+                        }
+                });
+            }
+
+            userOrientation();
+            map.set('styles',customStyled);
+
+            //this bit of code rotates the icon to the direction the user is facing
+           function userOrientation() {
+
+                if (window.DeviceOrientationEvent) {
+
+                    window.addEventListener('deviceorientation', function(event) {
+                        var alpha = null;
+                        //Check for iOS property
+                        if (os.name == "iOS" || os.name == "Mac OS") {
+                            alpha = event.webkitCompassHeading;
+                        }
+                        //android etc
+                        else {
+                            alpha = event.alpha;
+                        }
+                        //takes the current icon, rotates it and assigns the new rotated one to the marker.
+                        var locationIcon = marker.getIcon();;
+                        locationIcon.rotation = 360 - alpha;
+                        marker.setIcon(locationIcon);
+                    }, false);
+                }else{
+                    alert("device orientation not supported");
+                }
+            }
+           
+            //loads the tree data from a geojson file located in the /static directory
+            map.data.loadGeoJson('/static/TreesHWU.geojson', null, function (features) {
+
+            //this function sets the style of the maps markers using the image link outlined by each object in the geojson files
+            map.data.setStyle(function(feature) {
+                var tree = {
+                url: feature.getProperty('icon'),
+                scaledSize: new google.maps.Size(74, 74),
+                origin: new google.maps.Point(0, 0),
+                anchor: new google.maps.Point(0, 74),
+                };
+             return {icon: tree};
+            });
+
+                //gets the current position of the user and pans the map to that location
+                getCurrentPosition({
+                    onSuccess: ({ coords: { latitude: lat, longitude: lng } }) => {
+                        marker.setPosition({ lat, lng });//creates marker at user's location
+                        map.panTo({ lat, lng });//pans to the marker
+                    },
+                    onError: err =>
+                        alert(`Error: ${getPositionErrorMessage(err.code) || err.message}`)
+                });
+
+                //tracks the users current location and upda-tes the map to pan to the location on every movement, lat and long data can also
+                // be sent to backend for testing (where it is added to a database)
+                trackLocation({
+                    onSuccess: ({ coords: { latitude: lat, longitude: lng } }) => {
+                        marker.setPosition({ lat, lng });
+                        map.panTo({ lat, lng });
+                       // $.ajax({
+                           // url: "https://www.thetrailapp.com/location/" + lat + "/" + lng
+                        //});
+                       $.ajax({//send location to backend
+                            url: "https://www.thetrailapp.com/route/" + lat + "/" + lng,
+                            method: "POST",
+                            contentType:'application/json&apos',
+                            dataType: 'json',
+                            cache: false,
+                            scriptCharset: 'utf-8',
+                        }). done (function (jdata) {
+                            counter++;//use a counter to display the data every 5 seconds
+                           var data = $.parseJSON(jdata);
+                           if(data == false && counter%5 == 0){//if the user is not inside the geofence alert them
+                               alert("Lost? \nYou are not in the vicinity of a Route.\n Please make your way to Heriot-Watt Campus or the Test Area");
+                           }
+                        }). fail (function (jdata) {
+                            var d = $.parseJSON(jdata);
+                            alert("fail");
+                            console.log (jdata);
+                        });
+                    },
+                    onError: err =>
+                        alert(`Error: ${getPositionError(err.code) || err.message}`)
+                });
+            });
+
+            // Handles click event on a tree marker, pulls matching tree data from json and renders it in a pop-up modal on screen
+            map.data.addListener('click', function (event) {
+                var tree_id = event.feature.getProperty('Id');//pulls data from geojson
+                var tree_name = event.feature.getProperty('CommonName');
+                var latin_name = event.feature.getProperty('LatinName');
+                var tree_age = event.feature.getProperty('Age');
+                var tree_height = event.feature.getProperty('Height');
+                var tree_description = event.feature.getProperty('Description');
+                var tree_origin = event.feature.getProperty('Origin');
+                var tree_img = event.feature.getProperty('Src');
+                $('#tree_title').html(tree_id + ": " + tree_name);
+                $('#tree_img').attr("src", tree_img);
+                $('#tree_age').html(tree_age);
+                $('#latin_name').html(latin_name);
+                $('#tree_height').html(tree_height);
+                $('#tree_info').html(tree_description);
+                $('#tree_origin').html(tree_origin);
+                $('#myModal').modal('show');
+            });
+        }
+    </script>
+  
+
+    <!--This link performs the API call using my key and the result of the initialisation function above-->
+    <script async defer
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyALqdMIQIIw-bxjUWGb1LNwXgB8sb4saeA&callback=initMap"
+        type="text/javascript">
+    </script>
+
+   
+    <!-- Dynamic height adjustments to get 100% height for map-->
+    <script>
+        var body = document.body, html = document.documentElement;
+        var height = Math.max(body.scrollHeight, body.offsetHeight, html.clientHeight, html.scrollHeight, html.offsetHeight) - 100;
+        document.getElementById('map2').style.height = height + 'px';
+    </script>
+
+</body>
+{{template "footer.html"}}
